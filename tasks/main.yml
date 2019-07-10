@@ -109,7 +109,7 @@
     mode: 0644
 
 - name: format hdfs
-  shell: "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64; bin/hdfs namenode -format"
+  shell: "bin/hdfs namenode -format"
   args:
-      chdir: "{{ install_dir}}/{{ hadoop.hadoop_install_dir }}"
+    chdir: "{{ install_dir}}/{{ hadoop.hadoop_install_dir }}"
       #when: (inventory_hostname in groups['master'])
