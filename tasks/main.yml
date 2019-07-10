@@ -1,12 +1,18 @@
-- name: set hdfs fact
-  set_fact: hdfs_installed=True
-
 #- name: Create service account for HDFS
 #  user: name={{ hadoop.user }}
 #        system=yes
 #        shell={{ hadoop.user_shell }}
 #        state=present
 #        groups="{{ hadoop.user_groups | join(',') }}"
+
+- name: ensure tar is present
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+  - tar
+  - unzip
+  become: yes
 
 - name: define number of nodes
   set_fact: number_of_nodes=1 #"{{ groups['nodes'] | length | int }}"
@@ -72,32 +78,44 @@
  
 - name: create install directory
   file:
-    path: "{{ install_dir }}/{{ hadoop.hadoop_install_dir }}"
+    path: "{{ hadoop_install_dir }}"
     state: directory
 #    owner: "{{ hadoop.user }}"
 #    group: "{{ hadoop.user }}"
 #  become: true
 
-- debug:
-     msg: "Downloading Hadoop from: {{ hadoop.download_location }}/hadoop-{{ hadoop.version }}/{{ hadoop.hadoop_archive }}"
-
 - name: download hadoop
-  get_url: url="{{ hadoop.download_location }}/hadoop-{{ hadoop.version }}/{{ hadoop.hadoop_archive }}" dest="{{ install_temp_dir }}/{{ hadoop.hadoop_archive }}"
+  get_url:
+    url: "{{ hadoop.download_location }}/hadoop-{{ hadoop.version }}/{{ hadoop.hadoop_archive }}"
+    dest: "/tmp/{{ hadoop.hadoop_archive }}"
 
 - name: unarchive to the install directory
-  shell: "tar -xvf {{ install_temp_dir }}/{{ hadoop.hadoop_archive }} --strip 1 --directory {{ install_dir }}/{{ hadoop.hadoop_install_dir }}"
+  unarchive:
+    src: "/tmp/{{ hadoop.hadoop_archive }}"
+    dest: "{{ hadoop_install_dir }}"
+    remote_src: true
+    extra_opts:
+    - "--strip-components=1"
 
 - name: set core-site.xml
-  template: src="core-site.xml.j2" dest="{{ install_dir }}/{{ hadoop.hadoop_install_dir }}/etc/hadoop/core-site.xml"
+  template:
+    src: "core-site.xml.j2"
+    dest: "{{ hadoop_install_dir }}/etc/hadoop/core-site.xml"
 
 - name: set hadoop-env.sh
-  template: src="hadoop-env.sh.j2" dest="{{ install_dir}}/{{ hadoop.hadoop_install_dir }}/etc/hadoop/hadoop-env.sh"
+  template:
+    src: "hadoop-env.sh.j2"
+    dest: "{{ hadoop_install_dir }}/etc/hadoop/hadoop-env.sh"
 
 - name: set hdfs-site.xml
-  template: src="hdfs-site.xml.j2" dest="{{ install_dir}}/{{ hadoop.hadoop_install_dir }}/etc/hadoop/hdfs-site.xml"
+  template:
+    src: "hdfs-site.xml.j2"
+    dest: "{{ hadoop_install_dir }}/etc/hadoop/hdfs-site.xml"
 
 - name: set slaves
-  template: src="slaves.j2" dest="{{ install_dir}}/{{ hadoop.hadoop_install_dir }}/etc/hadoop/slaves"
+  template:
+    src: "slaves.j2"
+    dest: "{{ hadoop_install_dir }}/etc/hadoop/slaves"
   when: number_of_nodes | int >= 3
   become: true
 
@@ -109,7 +127,7 @@
     mode: 0644
 
 - name: format hdfs
-  shell: "source /etc/profile.d/java_home.sh; bin/hdfs namenode -format"
+  shell: ". /etc/profile.d/java_home.sh; bin/hdfs namenode -format"
   args:
-    chdir: "{{ install_dir}}/{{ hadoop.hadoop_install_dir }}"
+    chdir: "{{ hadoop_install_dir }}"
       #when: (inventory_hostname in groups['master'])
