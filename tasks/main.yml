@@ -98,6 +98,7 @@
 
 - name: set slaves
   template: src="slaves.j2" dest="{{ install_dir}}/{{ hadoop.hadoop_install_dir }}/etc/hadoop/slaves"
+  when: number_of_nodes | int >= 3
   become: true
 
 # Environment setup.
@@ -108,7 +109,7 @@
     mode: 0644
 
 - name: format hdfs
-  shell: "bin/hdfs namenode -format"
+  shell: "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64; bin/hdfs namenode -format"
   args:
       chdir: "{{ install_dir}}/{{ hadoop.hadoop_install_dir }}"
-  when: (inventory_hostname in groups['master'])
+      #when: (inventory_hostname in groups['master'])

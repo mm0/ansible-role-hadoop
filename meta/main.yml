@@ -17,3 +17,5 @@ galaxy_info:
     - cloud
 dependencies:
   - role: geerlingguy.java
+    vars:
+      JAVA_HOME: /usr/lib/jvm/java-8-openjdk-amd64/jre/
