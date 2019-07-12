@@ -127,7 +127,11 @@
     mode: 0644
 
 - name: format hdfs
-  shell: ". /etc/profile.d/java_home.sh; bin/hdfs namenode -format"
+  shell: ". /etc/profile.d/java_home.sh &&  env"
+  args:
+    chdir: "{{ hadoop_install_dir }}"
+- name: format hdfs
+  shell: ". /etc/profile.d/java_home.sh &&  bin/hdfs namenode -format"
   args:
     chdir: "{{ hadoop_install_dir }}"
       #when: (inventory_hostname in groups['master'])
