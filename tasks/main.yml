@@ -1,9 +1,24 @@
-#- name: Create service account for HDFS
-#  user: name={{ hadoop.user }}
-#        system=yes
-#        shell={{ hadoop.user_shell }}
-#        state=present
-#        groups="{{ hadoop.user_groups | join(',') }}"
+- name: Create service account for HDFS
+  user: 
+    name: "{{ hadoop.user }}"
+    system: yes
+    ssh_key_file: "{{ lookup('file', 'test-ssh') }}"
+    shell: "{{ hadoop.user_shell }}"
+    state: present
+
+- name: Add ssh key to authorized keys
+  authorized_key:
+    user: "{{ hadoop.user }}"
+    state: present
+    key: "{{ lookup('file', 'test-ssh.pub') }}"
+    
+- name: Add host keys
+  known_hosts:
+    name: "{{ item }}"
+    key: "{{ lookup('pipe', 'ssh-keyscan {{ item }},`dig +short {{ item }}`') }}"
+  become: yes
+  become_user: "{{ hadoop.user }}"
+  with_items: "{{ hadoop.default_hosts +  groups['all'] }}"
 
 - name: ensure tar is present
   package:
@@ -40,9 +55,9 @@
   file:
     path: "{{ hadoop.data_dir }}"
     state: directory
-#    owner: "{{ hadoop.user }}"
-#    group: "{{ hadoop.user }}"
-#  become: true
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
+  become: true
 
 - name: remove pre-existent hadoop name directory
   file:
@@ -53,9 +68,9 @@
   file:
     path: "{{ hadoop.name_dir }}"
     state: directory
-#    owner: "{{ hadoop.user }}"
-#    group: "{{ hadoop.user }}"
-#  become: true
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
+  become: true
 
 
 - name: remove pre-existent hadoop temp directory
@@ -67,9 +82,9 @@
   file:
     path: "{{ hadoop.temp_dir }}"
     state: directory
-#    owner: "{{ hadoop.user }}"
-#    group: "{{ hadoop.user }}"
-#  become: true
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
+  become: true
 #
 - name: create install temp directory
   file:
@@ -80,9 +95,9 @@
   file:
     path: "{{ hadoop_install_dir }}"
     state: directory
-#    owner: "{{ hadoop.user }}"
-#    group: "{{ hadoop.user }}"
-#  become: true
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
+  become: true
 
 - name: download hadoop
   get_url:
@@ -93,6 +108,8 @@
   unarchive:
     src: "/tmp/{{ hadoop.hadoop_archive }}"
     dest: "{{ hadoop_install_dir }}"
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
     remote_src: true
     extra_opts:
     - "--strip-components=1"
@@ -101,21 +118,29 @@
   template:
     src: "core-site.xml.j2"
     dest: "{{ hadoop_install_dir }}/etc/hadoop/core-site.xml"
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
 
 - name: set hadoop-env.sh
   template:
     src: "hadoop-env.sh.j2"
     dest: "{{ hadoop_install_dir }}/etc/hadoop/hadoop-env.sh"
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
 
 - name: set hdfs-site.xml
   template:
     src: "hdfs-site.xml.j2"
     dest: "{{ hadoop_install_dir }}/etc/hadoop/hdfs-site.xml"
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
 
 - name: set slaves
   template:
     src: "slaves.j2"
     dest: "{{ hadoop_install_dir }}/etc/hadoop/slaves"
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
   when: number_of_nodes | int >= 3
   become: true
 
@@ -124,14 +149,13 @@
   template:
     src: hadoop-profile.sh.j2
     dest: /etc/profile.d/hadoop-profile.sh
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
     mode: 0644
 
-- name: format hdfs
-  shell: ". /etc/profile.d/java_home.sh &&  env"
-  args:
-    chdir: "{{ hadoop_install_dir }}"
 - name: format hdfs
   shell: ". /etc/profile.d/java_home.sh &&  bin/hdfs namenode -format"
   args:
     chdir: "{{ hadoop_install_dir }}"
+  become_user: "{{ hadoop.user }}"
       #when: (inventory_hostname in groups['master'])

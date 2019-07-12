@@ -6,5 +6,10 @@ hadoop:
   name_dir: /var/hadoop/name
   temp_dir: /tmp/hadoop/hdfs/tmp
   download_location: https://archive.apache.org/dist/hadoop/common/
+  user: hadoop
+  user_shell: /bin/bash
+  default_hosts:
+  - 0.0.0.0
+  - 127.0.0.1
 hadoop_install_dir: "/opt/hadoop-{{ hadoop.version }}"
 
