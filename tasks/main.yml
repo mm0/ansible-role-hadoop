@@ -187,6 +187,7 @@
 
 - name: run on master
   shell: ". /etc/profile.d/java_home.sh &&  sbin/start-dfs.sh"
+  args:
     chdir: "{{ hadoop_install_dir }}"
   become_user: "{{ hadoop.user }}"
   when: (inventory_hostname in groups['cluster_master'])
