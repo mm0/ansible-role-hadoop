@@ -157,8 +157,17 @@
     dest: "{{ hadoop_install_dir }}/etc/hadoop/slaves"
     owner: "{{ hadoop.user }}"
     group: "{{ hadoop.user }}"
-  when: number_of_nodes | int >= 3
+  when: number_of_nodes | int >= 3 and (inventory_hostname in groups['cluster_master'])
   become: true
+
+- name: set master
+  lineinfile:
+    line: "{{ hadoop_master_ip }}"
+    dest: "{{ hadoop_install_dir }}/etc/hadoop/master"
+    owner: "{{ hadoop.user }}"
+    group: "{{ hadoop.user }}"
+  become: true
+  when: (inventory_hostname in groups['cluster_nodes'])
 
 # Environment setup.
 - name: add hadoop profile to startup
@@ -175,3 +184,10 @@
     chdir: "{{ hadoop_install_dir }}"
   become_user: "{{ hadoop.user }}"
   when: (inventory_hostname in groups['cluster_master'])
+
+- name: run on master
+  shell: ". /etc/profile.d/java_home.sh &&  sbin/start-dfs.sh"
+    chdir: "{{ hadoop_install_dir }}"
+  become_user: "{{ hadoop.user }}"
+  when: (inventory_hostname in groups['cluster_master'])
+  tags: [ 'never', 'start_cluster' ]
