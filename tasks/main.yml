@@ -3,6 +3,7 @@
     name: "{{ hadoop.user }}"
     system: yes
     shell: "{{ hadoop.user_shell }}"
+    generate_ssh_key: yes
     state: present
 
 - name: Disable IPV6
