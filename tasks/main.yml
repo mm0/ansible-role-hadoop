@@ -167,6 +167,7 @@
     dest: "{{ hadoop_install_dir }}/etc/hadoop/master"
     owner: "{{ hadoop.user }}"
     group: "{{ hadoop.user }}"
+    create: yes
   become: true
   when: (inventory_hostname in groups['cluster_nodes'])
 
