@@ -13,3 +13,4 @@ hadoop:
 hadoop_install_dir: "/opt/hadoop-{{ hadoop.version }}"
 hadoop_master_ip: 127.0.0.1
 number_of_nodes: "{{ (groups['cluster_master']+ groups['cluster_nodes']) |length|int}}"
+ssh_key_filename: "test-key"
