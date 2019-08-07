@@ -185,6 +185,7 @@
   args:
     chdir: "{{ hadoop_install_dir }}"
   become_user: "{{ hadoop.user }}"
+  become: true
   when: (inventory_hostname in groups['cluster_master'])
 
 - name: run on master
@@ -192,4 +193,5 @@
   args:
     chdir: "{{ hadoop_install_dir }}"
   become_user: "{{ hadoop.user }}"
+  become: true
   when: (inventory_hostname in groups['cluster_master'])
