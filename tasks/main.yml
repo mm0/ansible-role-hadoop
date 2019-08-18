@@ -1,5 +1,16 @@
+---
+- name: ensure tar is present
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - tar
+    - unzip
+    - openssh-client
+  become: yes
+
 - name: Create service account for HDFS
-  user: 
+  user:
     name: "{{ hadoop.user }}"
     system: yes
     shell: "{{ hadoop.user_shell }}"
@@ -14,9 +25,9 @@
     state: present
     reload: yes
   with_items:
-  - "net.ipv6.conf.all.disable_ipv6"
-  - "net.ipv6.conf.default.disable_ipv6"
-  - "net.ipv6.conf.lo.disable_ipv6"
+    - "net.ipv6.conf.all.disable_ipv6"
+    - "net.ipv6.conf.default.disable_ipv6"
+    - "net.ipv6.conf.lo.disable_ipv6"
 
 - name: Upload SSH Key for user
   copy:
@@ -38,19 +49,12 @@
     key: "{{ lookup('pipe', 'ssh-keyscan {{ item }},`dig +short {{ item }}`') }}"
   become: yes
   become_user: "{{ hadoop.user }}"
-  with_items: "{{ hadoop.default_hosts +  groups['all'] }}"
+  with_items: "{{ hadoop.default_hosts + groups|selectattr('cluster_master','defined')|list + groups|selectattr('cluster_nodes','defined')|list }}"
 
-- name: ensure tar is present
-  package:
-    name: "{{ item }}"
-    state: present
-  with_items:
-  - tar
-  - unzip
-  become: yes
-
-- debug:
-     msg: "Number of data nodes: {{ number_of_nodes }}"
+- name: Set number of nodes
+  set_fact:
+    number_of_nodes: "{{ groups|selectattr('cluster_master','defined')|list|length|default(0) +
+    groups|selectattr('cluster_nodes','defined')|list|length|default(0) }}"
 
 - name: disable hdfs replication in single node
   set_fact: hdfs_replication_factor=1
@@ -59,9 +63,6 @@
 - name: enable hdfs replication when cluster has more then three nodes
   set_fact: hdfs_replication_factor=3
   when: number_of_nodes | int >= 3
-
-- debug:
-     msg: "HDFS replication factor: {{ hdfs_replication_factor }}"
 
 - name: remove pre-existent hadoop data directory
   file:
@@ -89,7 +90,6 @@
     group: "{{ hadoop.user }}"
   become: true
 
-
 - name: remove pre-existent hadoop temp directory
   file:
     path: "{{ hadoop.temp_dir }}/"
@@ -102,12 +102,12 @@
     owner: "{{ hadoop.user }}"
     group: "{{ hadoop.user }}"
   become: true
-#
+
 - name: create install temp directory
   file:
     path: "{{ install_temp_dir }}"
     state: directory
- 
+
 - name: create install directory
   file:
     path: "{{ hadoop_install_dir }}"
@@ -129,7 +129,23 @@
     group: "{{ hadoop.user }}"
     remote_src: true
     extra_opts:
-    - "--strip-components=1"
+      - "--strip-components=1"
+
+- name: Get java home variable
+  shell: . /etc/profile.d/java_home.sh; echo $JAVA_HOME
+  register: java_home_output
+  when: java_home is not defined
+
+- name: Set java_home
+  set_fact:
+    java_home: "{{ java_home_ouput.stdout }}"
+  when: java_home is not defined
+
+- name: Set is_master
+  set_fact:
+    is_master: true
+    is_node: false
+  when: ( 'cluster_master' in groups ) and (inventory_hostname in groups['cluster_master'])
 
 - name: set core-site.xml
   template:
@@ -158,8 +174,8 @@
     dest: "{{ hadoop_install_dir }}/etc/hadoop/slaves"
     owner: "{{ hadoop.user }}"
     group: "{{ hadoop.user }}"
-  when: number_of_nodes | int >= 3 and (inventory_hostname in groups['cluster_master'])
-  become: true
+  when: number_of_nodes | int >= 3 and (inventory_hostname in groups|selectattr('cluster_master','defined')|list)
+  become: yes
 
 - name: set master
   lineinfile:
@@ -169,7 +185,7 @@
     group: "{{ hadoop.user }}"
     create: yes
   become: true
-  when: (inventory_hostname in groups['cluster_nodes'])
+  when: is_master
 
 # Environment setup.
 - name: add hadoop profile to startup
@@ -184,12 +200,14 @@
   shell: ". /etc/profile.d/java_home.sh &&  bin/hdfs namenode -format"
   args:
     chdir: "{{ hadoop_install_dir }}"
+  become: yes
   become_user: "{{ hadoop.user }}"
-  when: (inventory_hostname in groups['cluster_master'])
+  when: is_master
 
 - name: run on master
   shell: ". /etc/profile.d/java_home.sh &&  sbin/start-dfs.sh"
   args:
     chdir: "{{ hadoop_install_dir }}"
   become_user: "{{ hadoop.user }}"
-  when: (inventory_hostname in groups['cluster_master'])
+  become: yes
+  when: is_master
